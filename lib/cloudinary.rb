@@ -8,7 +8,7 @@ require "cloudinary/utils"
 require "cloudinary/uploader"
 require "cloudinary/api"
 require "cloudinary/downloader"
-require "cloudinary/blob" 
+require "cloudinary/blob"
 require "cloudinary/preloaded_file"
 require "cloudinary/static"
 require "cloudinary/missing"
@@ -18,13 +18,13 @@ require "cloudinary/controller" if defined?(::ActionController::Base)
 require "cloudinary/railtie" if defined?(Rails) && defined?(Rails::Railtie)
 require "cloudinary/engine" if defined?(Rails) && defined?(Rails::Engine)
 
-module Cloudinary  
+module Cloudinary
   @@config = nil
-  
+
   def self.config(new_config=nil)
     first_time = @@config.nil?
     @@config ||= OpenStruct.new((YAML.load_file(config_dir.join("cloudinary.yml"))[config_env] rescue {}))
-        
+
     # Heroku support
     if first_time && ENV["CLOUDINARY_CLOUD_NAME"]
       set_config(
@@ -53,23 +53,23 @@ module Cloudinary
     set_config(new_config) if new_config
     yield(@@config) if block_given?
 
-    @@config    
+    @@config
   end
-  
+
   private
-  
+
   def self.config_env
     return ENV["CLOUDINARY_ENV"] if ENV["CLOUDINARY_ENV"]
-    return Rails.env if defined?(Rails)
+    return Rails.env if defined?(Rails) && Rails.env
     nil
   end
-  
+
   def self.config_dir
-    return Pathname.new(ENV["CLOUDINARY_CONFIG_DIR"]) if ENV["CLOUDINARY_CONFIG_DIR"] 
-    return Rails.root.join("config") if defined?(Rails)
+    return Pathname.new(ENV["CLOUDINARY_CONFIG_DIR"]) if ENV["CLOUDINARY_CONFIG_DIR"]
+    return Rails.root.join("config") if defined?(Rails) && Rails.root
     Pathname.new("config")
   end
-  
+
   def self.set_config(new_config)
     new_config.each{|k,v| @@config.send(:"#{k}=", v) if !v.nil?}
   end

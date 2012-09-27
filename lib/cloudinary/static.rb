@@ -7,9 +7,9 @@ class Cloudinary::Static
   STATIC_IMAGE_DIRS = ["app/assets/images", "lib/assets/images", "vendor/assets/images", "public/images"]
   METADATA_FILE = ".cloudinary.static"
   METADATA_TRASH_FILE = ".cloudinary.static.trash"
-  
+
   def self.discover
-    ignore_files = Cloudinary.config.ignore_files || IGNORE_FILES 
+    ignore_files = Cloudinary.config.ignore_files || IGNORE_FILES
     relative_dirs = Cloudinary.config.static_image_dirs || STATIC_IMAGE_DIRS
     dirs = relative_dirs.map{|dir| self.root.join(dir)}.select(&:exist?)
     dirs.each do
@@ -23,7 +23,7 @@ class Cloudinary::Static
         elsif path.directory?
           next
         elsif SUPPORTED_IMAGES.none?{|pattern| pattern.is_a?(String) ? pattern == file : file.match(pattern)}
-          next          
+          next
         else
           relative_path = path.relative_path_from(self.root)
           public_path = path.relative_path_from(dir.dirname)
@@ -32,11 +32,11 @@ class Cloudinary::Static
       end
     end
   end
-  
+
   def self.root
-    defined?(Rails) ? Rails.root : Pathname.new(".")
+    defined?(Rails) && Rails.root ? Rails.root : Pathname.new(".")
   end
-  
+
   def self.metadata_file_path
     self.root.join(METADATA_FILE)
   end
@@ -44,8 +44,8 @@ class Cloudinary::Static
   def self.metadata_trash_file_path
     self.root.join(METADATA_TRASH_FILE)
   end
-  
-  def self.metadata(metadata_file = metadata_file_path, hash=true) 
+
+  def self.metadata(metadata_file = metadata_file_path, hash=true)
     metadata = []
     if File.exist?(metadata_file)
       IO.foreach(metadata_file) do
@@ -54,8 +54,8 @@ class Cloudinary::Static
         next if line.blank?
         path, public_id, upload_time, version, width, height = line.split("\t")
         metadata << [path, {
-          "public_id" => public_id, 
-          "upload_time" => Time.at(upload_time.to_i).getutc, 
+          "public_id" => public_id,
+          "upload_time" => Time.at(upload_time.to_i).getutc,
           "version" => version,
           "width" => width.to_i,
           "height" => height.to_i
@@ -83,7 +83,7 @@ class Cloudinary::Static
       md5 = Digest::MD5.hexdigest(data)
       public_id = "#{public_path.basename(ext)}-#{md5}"
       found_public_ids << public_id
-      current_metadata = metadata.delete(public_path.to_s)      
+      current_metadata = metadata.delete(public_path.to_s)
       if current_metadata && current_metadata["public_id"] == public_id # Signature match
         counts[:not_changed] += 1
         $stderr.print "#{public_path} - #{public_id} - Not changed\n"
@@ -93,18 +93,18 @@ class Cloudinary::Static
         $stderr.print "#{public_path} - #{public_id} - Uploading\n"
         result = Cloudinary::Uploader.upload(Cloudinary::Blob.new(data, :original_filename=>path.to_s),
           options.merge(:format=>format, :public_id=>public_id, :type=>:asset)
-        ).merge("upload_time"=>Time.now)        
+        ).merge("upload_time"=>Time.now)
       end
       metadata_lines << [public_path, public_id, result["upload_time"].to_i, result["version"], result["width"], result["height"]].join("\t")+"\n"
     end
     File.open(self.metadata_file_path, "w"){|f| f.print(metadata_lines.join)}
     metadata.to_a.each do |path, info|
       counts[:not_found] += 1
-      $stderr.print "#{path} - #{info["public_id"]} - Not found\n"      
+      $stderr.print "#{path} - #{info["public_id"]} - Not found\n"
     end
-    # Files no longer needed 
-    trash = metadata.to_a + self.metadata(metadata_trash_file_path, false).reject{|public_path, info| found_public_ids.include?(info["public_id"])} 
-    
+    # Files no longer needed
+    trash = metadata.to_a + self.metadata(metadata_trash_file_path, false).reject{|public_path, info| found_public_ids.include?(info["public_id"])}
+
     if delete_missing
       trash.each do
         |path, info|
@@ -119,9 +119,9 @@ class Cloudinary::Static
         |public_path, info|
         [public_path, info["public_id"], info["upload_time"].to_i, info["version"], info["width"], info["height"]].join("\t")+"\n"
       end
-      File.open(self.metadata_trash_file_path, "w"){|f| f.print(metadata_lines.join)}    
+      File.open(self.metadata_trash_file_path, "w"){|f| f.print(metadata_lines.join)}
     end
-    
+
     $stderr.print "\nCompleted syncing static resources to Cloudinary\n"
     $stderr.print counts.sort.reject{|k,v| v == 0}.map{|k,v| "#{v} #{k.to_s.gsub('_', ' ').capitalize}"}.join(", ") + "\n"
   end
